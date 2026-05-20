@@ -7,7 +7,7 @@
     "cwd": "/tmp",
     "prompt": "What is 2+2? Respond with only a JSON object: {\"result\": <number>}",
     "env": {
-      "HOME": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-rCwptd"
+      "HOME": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-7wfWOW"
     }
   },
   "events": [],

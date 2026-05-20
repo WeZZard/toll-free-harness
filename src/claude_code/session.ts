@@ -18,6 +18,8 @@ import type {
 import { HookServer } from "./hook_server.js";
 import { generatePlugin, type GeneratedPlugin } from "./plugin_generator.js";
 import { EventSequenceGuardrail } from "../core/guardrail.js";
+import { preTrust } from "./pre_trust.js";
+import { DialogGuard } from "./dialog_guard.js";
 import {
   selectOptionByNumber,
   navigateAndSelect,
@@ -31,6 +33,7 @@ export class ClaudeCodeSession {
   private hookServer: HookServer;
   private _guardrail: EventSequenceGuardrail;
   private plugin: GeneratedPlugin | undefined;
+  private dialogGuard: DialogGuard;
 
   // Dedicated interaction handlers
   private askUserQuestionHandler: AskUserQuestionHandler | undefined;
@@ -48,6 +51,7 @@ export class ClaudeCodeSession {
   constructor(readonly config: SessionConfig) {
     this.hookServer = new HookServer();
     this._guardrail = new EventSequenceGuardrail();
+    this.dialogGuard = new DialogGuard();
     this.listeners = {
       preToolUse: new Map(),
       permissionRequest: new Map(),
@@ -207,6 +211,11 @@ export class ClaudeCodeSession {
       return {};
     });
 
+    this.hookServer.setHandler("SessionStart", async () => {
+      this.dialogGuard.deactivate();
+      return {};
+    });
+
     this.plugin = await generatePlugin(socketPath);
 
     // Auto-inject survey suppression, then overlay user-provided env
@@ -214,6 +223,19 @@ export class ClaudeCodeSession {
     env.CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
     if (this.config.env) {
       Object.assign(env, this.config.env);
+    }
+
+    // Pre-session dialog handling
+    const isIsolatedHome = Boolean(this.config.env?.HOME);
+    if (isIsolatedHome) {
+      await preTrust(this.config.env!.HOME!, this.config.cwd);
+    }
+    // Trust + theme handlers always active — preTrust is best-effort,
+    // the PTY handler is the reliable fallback
+    this.dialogGuard.addHandler("trust", "\r");
+    this.dialogGuard.addHandler("text style", "1");
+    if (this.config.args.includes("bypassPermissions")) {
+      this.dialogGuard.addHandler("accept", "2");
     }
 
     const spawnArgs = [
@@ -234,27 +256,7 @@ export class ClaudeCodeSession {
       },
     );
 
-    // Auto-accept workspace trust dialog, onboarding theme picker,
-    // and bypass-permissions warning.
-    // PTY output contains ANSI escapes between words, so match on
-    // short contiguous fragments rather than full phrases.
-    let trustAccepted = false;
-    let themeAccepted = false;
-    let bypassAccepted = false;
-    this.ptyProcess.onData((data: string) => {
-      if (!trustAccepted && data.includes("trust")) {
-        trustAccepted = true;
-        this.ptyProcess?.write("\r");
-      }
-      if (!themeAccepted && data.includes("text style")) {
-        themeAccepted = true;
-        this.ptyProcess?.write("1");
-      }
-      if (!bypassAccepted && data.includes("accept")) {
-        bypassAccepted = true;
-        this.ptyProcess?.write("2");
-      }
-    });
+    this.dialogGuard.attach(this.ptyProcess);
 
     try {
       return await new Promise<SessionResult>((resolve) => {
@@ -263,6 +265,7 @@ export class ClaudeCodeSession {
         });
       });
     } finally {
+      this.dialogGuard.deactivate();
       this._guardrail.dispose();
       await this.hookServer.stop();
       await this.plugin?.cleanup();

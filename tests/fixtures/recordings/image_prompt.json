@@ -7,7 +7,7 @@
     "cwd": "/tmp",
     "prompt": "Look at this image: /Users/wezzard/repositories/com.github/WeZZard/toll-free-harness/tests/fixtures/generated/visual_fixture_a.png. What number is shown? Respond with only a JSON object: {\"result\": <number>}",
     "env": {
-      "HOME": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-LxTT62"
+      "HOME": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-Vfpziv"
     }
   },
   "events": [],

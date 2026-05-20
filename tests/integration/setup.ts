@@ -39,7 +39,7 @@ export function createIsolatedHome(): string {
   mkdirSync(claudeDir, { recursive: true });
   writeFileSync(
     path.join(tmpHome, ".claude.json"),
-    JSON.stringify({ hasCompletedOnboarding: true, lastOnboardingVersion: "99.0.0" }),
+    "{}",
     "utf8",
   );
   writeFileSync(
