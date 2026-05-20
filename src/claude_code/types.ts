@@ -5,9 +5,7 @@ export interface HookRequest {
   payload: Record<string, unknown>;
 }
 
-export type HookResponse = Record<string, unknown>;
-
-export type HookHandler = (request: HookRequest) => Promise<HookResponse>;
+export type HookListener = (request: HookRequest) => Promise<void> | void;
 
 export interface SessionConfig {
   args: string[];
@@ -26,5 +24,4 @@ export interface SessionResult {
 
 export interface HookSettingsConfig {
   socketPath: string;
-  hookScriptDir?: string;
 }

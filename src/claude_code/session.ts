@@ -5,9 +5,8 @@ import { randomUUID } from "node:crypto";
 import type {
   SessionConfig,
   SessionResult,
-  HookHandler,
+  HookListener,
   HookRequest,
-  HookResponse,
 } from "./types.js";
 import { HookServer } from "./hook_server.js";
 import { writeHookSettings } from "./hook_settings.js";
@@ -18,18 +17,18 @@ export class ClaudeCodeSession {
   private hookServer: HookServer;
   private _guardrail: EventSequenceGuardrail;
 
-  private handlers: {
-    preToolUse: Map<string, HookHandler>;
-    permissionRequest: Map<string, HookHandler>;
-    postToolUse: Map<string, HookHandler>;
-    stop: Array<(payload: Record<string, unknown>) => Promise<void>>;
-    userPromptSubmit: Array<(payload: Record<string, unknown>) => Promise<void>>;
+  private listeners: {
+    preToolUse: Map<string, HookListener>;
+    permissionRequest: Map<string, HookListener>;
+    postToolUse: Map<string, HookListener>;
+    stop: Array<(payload: Record<string, unknown>) => Promise<void> | void>;
+    userPromptSubmit: Array<(payload: Record<string, unknown>) => Promise<void> | void>;
   };
 
   constructor(readonly config: SessionConfig) {
     this.hookServer = new HookServer();
     this._guardrail = new EventSequenceGuardrail();
-    this.handlers = {
+    this.listeners = {
       preToolUse: new Map(),
       permissionRequest: new Map(),
       postToolUse: new Map(),
@@ -38,28 +37,28 @@ export class ClaudeCodeSession {
     };
   }
 
-  onPreToolUse(toolName: string, handler: HookHandler): this {
-    this.handlers.preToolUse.set(toolName, handler);
+  onPreToolUse(toolName: string, listener: HookListener): this {
+    this.listeners.preToolUse.set(toolName, listener);
     return this;
   }
 
-  onPermissionRequest(toolName: string, handler: HookHandler): this {
-    this.handlers.permissionRequest.set(toolName, handler);
+  onPermissionRequest(toolName: string, listener: HookListener): this {
+    this.listeners.permissionRequest.set(toolName, listener);
     return this;
   }
 
-  onPostToolUse(toolName: string, handler: HookHandler): this {
-    this.handlers.postToolUse.set(toolName, handler);
+  onPostToolUse(toolName: string, listener: HookListener): this {
+    this.listeners.postToolUse.set(toolName, listener);
     return this;
   }
 
-  onStop(handler: (payload: Record<string, unknown>) => Promise<void>): this {
-    this.handlers.stop.push(handler);
+  onStop(listener: (payload: Record<string, unknown>) => Promise<void> | void): this {
+    this.listeners.stop.push(listener);
     return this;
   }
 
-  onUserPromptSubmit(handler: (payload: Record<string, unknown>) => Promise<void>): this {
-    this.handlers.userPromptSubmit.push(handler);
+  onUserPromptSubmit(listener: (payload: Record<string, unknown>) => Promise<void> | void): this {
+    this.listeners.userPromptSubmit.push(listener);
     return this;
   }
 
@@ -81,56 +80,40 @@ export class ClaudeCodeSession {
       this._guardrail.push(event);
     });
 
-    this.hookServer.setHandler("PreToolUse", async (req: HookRequest): Promise<HookResponse> => {
-      const handler =
-        this.handlers.preToolUse.get(req.toolName ?? "") ??
-        this.handlers.preToolUse.get("*");
-      if (handler) {
-        return handler(req);
-      }
-      return {
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          permissionDecision: "allow",
-        },
-      };
+    this.hookServer.setHandler("PreToolUse", async (req: HookRequest) => {
+      const listener =
+        this.listeners.preToolUse.get(req.toolName ?? "") ??
+        this.listeners.preToolUse.get("*");
+      if (listener) await listener(req);
+      return {};
     });
 
-    this.hookServer.setHandler("PermissionRequest", async (req: HookRequest): Promise<HookResponse> => {
-      const handler =
-        this.handlers.permissionRequest.get(req.toolName ?? "") ??
-        this.handlers.permissionRequest.get("*");
-      if (handler) {
-        return handler(req);
-      }
-      return {
-        hookSpecificOutput: {
-          hookEventName: "PermissionRequest",
-          decision: { behavior: "allow" },
-        },
-      };
+    this.hookServer.setHandler("PermissionRequest", async (req: HookRequest) => {
+      const listener =
+        this.listeners.permissionRequest.get(req.toolName ?? "") ??
+        this.listeners.permissionRequest.get("*");
+      if (listener) await listener(req);
+      return {};
     });
 
-    this.hookServer.setHandler("PostToolUse", async (req: HookRequest): Promise<HookResponse> => {
-      const handler =
-        this.handlers.postToolUse.get(req.toolName ?? "") ??
-        this.handlers.postToolUse.get("*");
-      if (handler) {
-        return handler(req);
+    this.hookServer.setHandler("PostToolUse", async (req: HookRequest) => {
+      const listener =
+        this.listeners.postToolUse.get(req.toolName ?? "") ??
+        this.listeners.postToolUse.get("*");
+      if (listener) await listener(req);
+      return {};
+    });
+
+    this.hookServer.setHandler("Stop", async (req: HookRequest) => {
+      for (const listener of this.listeners.stop) {
+        await listener(req.payload);
       }
       return {};
     });
 
-    this.hookServer.setHandler("Stop", async (req: HookRequest): Promise<HookResponse> => {
-      for (const handler of this.handlers.stop) {
-        await handler(req.payload);
-      }
-      return {};
-    });
-
-    this.hookServer.setHandler("UserPromptSubmit", async (req: HookRequest): Promise<HookResponse> => {
-      for (const handler of this.handlers.userPromptSubmit) {
-        await handler(req.payload);
+    this.hookServer.setHandler("UserPromptSubmit", async (req: HookRequest) => {
+      for (const listener of this.listeners.userPromptSubmit) {
+        await listener(req.payload);
       }
       return {};
     });

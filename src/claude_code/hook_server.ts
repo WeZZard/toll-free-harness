@@ -2,7 +2,10 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import type { Socket } from "node:net";
 import { unlink } from "node:fs/promises";
 import type { HookEvent, HookEventKind } from "../core/types.js";
-import type { HookHandler, HookRequest, HookResponse } from "./types.js";
+import type { HookRequest } from "./types.js";
+
+type HookResponse = Record<string, unknown>;
+type HookResponseFn = (request: HookRequest) => Promise<HookResponse>;
 
 function mapEventKind(hookEventName: string): HookEventKind {
   switch (hookEventName) {
@@ -19,14 +22,14 @@ export class HookServer {
   private server: Server | undefined;
   private connections = new Set<Socket>();
   private onEvent: ((event: HookEvent) => void) | undefined;
-  private handlers = new Map<string, HookHandler>();
+  private handlers = new Map<string, HookResponseFn>();
   socketPath: string | undefined;
 
   setEventListener(fn: (event: HookEvent) => void): void {
     this.onEvent = fn;
   }
 
-  setHandler(hookEventName: string, fn: HookHandler): void {
+  setHandler(hookEventName: string, fn: HookResponseFn): void {
     this.handlers.set(hookEventName, fn);
   }
 
