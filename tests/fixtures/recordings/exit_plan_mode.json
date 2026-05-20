@@ -1,0 +1,53 @@
+{
+  "config": {
+    "args": [
+      "--permission-mode",
+      "bypassPermissions"
+    ],
+    "cwd": "/tmp",
+    "prompt": "Enter plan mode. Design a plan for creating a hello world script in TypeScript. Then call ExitPlanMode to present the plan for my approval.",
+    "env": {
+      "HOME": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-nRkIar"
+    }
+  },
+  "events": [
+    {
+      "ts": 55347,
+      "kind": "hook_event",
+      "hookEventName": "PreToolUse",
+      "toolName": "ExitPlanMode",
+      "payload": {
+        "session_id": "4503b62a-3a8e-4fbe-8d11-3c587227c89f",
+        "transcript_path": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-nRkIar/.claude/projects/-private-tmp/4503b62a-3a8e-4fbe-8d11-3c587227c89f.jsonl",
+        "cwd": "/private/tmp",
+        "permission_mode": "plan",
+        "effort": {
+          "level": "xhigh"
+        },
+        "hook_event_name": "PermissionRequest",
+        "tool_name": "ExitPlanMode",
+        "tool_input": {
+          "allowedPrompts": [
+            {
+              "tool": "Bash",
+              "prompt": "run the hello.ts script via npx tsx to verify output"
+            }
+          ],
+          "plan": "# Hello World TypeScript Script\n\n## Context\nThe user wants a minimal TypeScript \"hello world\" script in the current working directory (`/private/tmp`). This is not a git repository and has no existing project setup, so the plan creates a single standalone `.ts` file that can be run with `npx tsx` (no install/build step needed).\n\n## Approach\nCreate one file: `/private/tmp/hello.ts` containing a single `console.log(\"Hello, world!\");` statement.\n\nNo `package.json`, `tsconfig.json`, or `node_modules` will be added — keeping the artifact to one file matches the scope of the request.\n\n## Files to create\n- `/private/tmp/hello.ts` — the script\n\n## Verification\nRun the script with one of:\n- `npx tsx /private/tmp/hello.ts` (no install required)\n- `npx ts-node /private/tmp/hello.ts`\n\nExpected output:\n```\nHello, world!\n```\n",
+          "planFilePath": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-nRkIar/.claude/plans/tranquil-zooming-scroll.md"
+        },
+        "planText": "# Hello World TypeScript Script\n\n## Context\nThe user wants a minimal TypeScript \"hello world\" script in the current working directory (`/private/tmp`). This is not a git repository and has no existing project setup, so the plan creates a single standalone `.ts` file that can be run with `npx tsx` (no install/build step needed).\n\n## Approach\nCreate one file: `/private/tmp/hello.ts` containing a single `console.log(\"Hello, world!\");` statement.\n\nNo `package.json`, `tsconfig.json`, or `node_modules` will be added — keeping the artifact to one file matches the scope of the request.\n\n## Files to create\n- `/private/tmp/hello.ts` — the script\n\n## Verification\nRun the script with one of:\n- `npx tsx /private/tmp/hello.ts` (no install required)\n- `npx ts-node /private/tmp/hello.ts`\n\nExpected output:\n```\nHello, world!\n```\n",
+        "planFilePath": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-nRkIar/.claude/plans/tranquil-zooming-scroll.md"
+      }
+    },
+    {
+      "ts": 55347,
+      "kind": "pty_in",
+      "data": "{\"decision\":\"approve\"}"
+    }
+  ],
+  "result": {
+    "exitCode": 129,
+    "signal": 0
+  }
+}

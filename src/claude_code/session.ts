@@ -234,11 +234,13 @@ export class ClaudeCodeSession {
       },
     );
 
-    // Auto-accept workspace trust dialog and onboarding theme picker.
+    // Auto-accept workspace trust dialog, onboarding theme picker,
+    // and bypass-permissions warning.
     // PTY output contains ANSI escapes between words, so match on
     // short contiguous fragments rather than full phrases.
     let trustAccepted = false;
     let themeAccepted = false;
+    let bypassAccepted = false;
     this.ptyProcess.onData((data: string) => {
       if (!trustAccepted && data.includes("trust")) {
         trustAccepted = true;
@@ -247,6 +249,10 @@ export class ClaudeCodeSession {
       if (!themeAccepted && data.includes("text style")) {
         themeAccepted = true;
         this.ptyProcess?.write("1");
+      }
+      if (!bypassAccepted && data.includes("accept")) {
+        bypassAccepted = true;
+        this.ptyProcess?.write("2");
       }
     });
 

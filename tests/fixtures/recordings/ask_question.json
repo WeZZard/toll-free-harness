@@ -1,0 +1,86 @@
+{
+  "config": {
+    "args": [
+      "--permission-mode",
+      "bypassPermissions"
+    ],
+    "cwd": "/tmp",
+    "prompt": "Use the AskUserQuestion tool to ask me which programming language I prefer. Provide these options: TypeScript, Python, Rust. Do nothing else after I answer.",
+    "env": {
+      "HOME": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-F82pau"
+    }
+  },
+  "events": [
+    {
+      "ts": 17275,
+      "kind": "hook_event",
+      "hookEventName": "PreToolUse",
+      "toolName": "AskUserQuestion",
+      "payload": {
+        "session_id": "5705f5fa-09f4-4b7d-8cb8-fbc08e5f2f63",
+        "transcript_path": "/var/folders/6k/2pyw4gmn4d9_1vf8t1cd7vj00000gn/T/tfh-test-F82pau/.claude/projects/-private-tmp/5705f5fa-09f4-4b7d-8cb8-fbc08e5f2f63.jsonl",
+        "cwd": "/private/tmp",
+        "permission_mode": "bypassPermissions",
+        "effort": {
+          "level": "xhigh"
+        },
+        "hook_event_name": "PermissionRequest",
+        "tool_name": "AskUserQuestion",
+        "tool_input": {
+          "questions": [
+            {
+              "question": "Which programming language do you prefer?",
+              "header": "Language",
+              "options": [
+                {
+                  "label": "TypeScript",
+                  "description": "Statically-typed JavaScript superset, great for web and full-stack development."
+                },
+                {
+                  "label": "Python",
+                  "description": "Versatile, readable language popular for scripting, data, and ML."
+                },
+                {
+                  "label": "Rust",
+                  "description": "Systems language with memory safety and high performance."
+                }
+              ],
+              "multiSelect": false
+            }
+          ]
+        },
+        "text": "Which programming language do you prefer?",
+        "questions": [
+          {
+            "question": "Which programming language do you prefer?",
+            "header": "Language",
+            "options": [
+              {
+                "label": "TypeScript",
+                "description": "Statically-typed JavaScript superset, great for web and full-stack development."
+              },
+              {
+                "label": "Python",
+                "description": "Versatile, readable language popular for scripting, data, and ML."
+              },
+              {
+                "label": "Rust",
+                "description": "Systems language with memory safety and high performance."
+              }
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    {
+      "ts": 17275,
+      "kind": "pty_in",
+      "data": "{\"selectedIndex\":0}"
+    }
+  ],
+  "result": {
+    "exitCode": 129,
+    "signal": 0
+  }
+}
