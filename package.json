@@ -1,6 +1,6 @@
 {
   "name": "toll-free-harness",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive PTY harness for local coding agents.",
   "type": "module",
   "main": "./dist/index.js",
