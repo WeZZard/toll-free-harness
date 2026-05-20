@@ -1,5 +1,6 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Socket } from "node:net";
+import { unlink } from "node:fs/promises";
 import type { HookEvent, HookEventKind, HookHandler, HookRequest, HookResponse } from "./types.js";
 
 function mapEventKind(hookEventName: string): HookEventKind {
@@ -18,7 +19,7 @@ export class HookServer {
   private connections = new Set<Socket>();
   private onEvent: ((event: HookEvent) => void) | undefined;
   private handlers = new Map<string, HookHandler>();
-  port = 0;
+  socketPath: string | undefined;
 
   setEventListener(fn: (event: HookEvent) => void): void {
     this.onEvent = fn;
@@ -28,8 +29,10 @@ export class HookServer {
     this.handlers.set(hookEventName, fn);
   }
 
-  async start(): Promise<number> {
-    return new Promise<number>((resolve, reject) => {
+  async start(socketPath: string): Promise<string> {
+    await unlink(socketPath).catch(() => {});
+    this.socketPath = socketPath;
+    return new Promise<string>((resolve, reject) => {
       this.server = createServer((req, res) => {
         this.handleRequest(req, res).catch((err) => {
           console.error(`[hook-server] error: ${String(err)}`);
@@ -42,14 +45,8 @@ export class HookServer {
         socket.on("close", () => this.connections.delete(socket));
       });
       this.server.on("error", reject);
-      this.server.listen(0, "127.0.0.1", () => {
-        const addr = this.server!.address();
-        if (typeof addr === "object" && addr !== null) {
-          this.port = addr.port;
-          resolve(addr.port);
-        } else {
-          reject(new Error("Failed to get server address"));
-        }
+      this.server.listen(socketPath, () => {
+        resolve(socketPath);
       });
     });
   }
@@ -64,7 +61,12 @@ export class HookServer {
         resolve();
         return;
       }
-      this.server.close(() => resolve());
+      this.server.close(async () => {
+        if (this.socketPath) {
+          await unlink(this.socketPath).catch(() => {});
+        }
+        resolve();
+      });
     });
   }
 

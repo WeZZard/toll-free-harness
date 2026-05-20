@@ -1,5 +1,7 @@
 import * as pty from "node-pty";
 import path from "node:path";
+import os from "node:os";
+import { randomUUID } from "node:crypto";
 import type {
   SessionConfig,
   SessionResult,
@@ -70,7 +72,11 @@ export class ClaudeCodeSession {
   }
 
   async run(): Promise<SessionResult> {
-    const port = await this.hookServer.start();
+    const homeDir = this.config.env?.HOME ?? process.env.HOME ?? "/tmp";
+    const hookScriptDir = this.config.hookScriptDir ?? path.join(homeDir, ".toll-free-hooks");
+    const socketPath = path.join(os.tmpdir(), `toll-free-${randomUUID()}.sock`);
+
+    await this.hookServer.start(socketPath);
 
     this.hookServer.setEventListener((event) => {
       this._guardrail.push(event);
@@ -130,9 +136,7 @@ export class ClaudeCodeSession {
       return {};
     });
 
-    const homeDir = this.config.env?.HOME ?? process.env.HOME ?? "/tmp";
-    const hookScriptDir = this.config.hookScriptDir ?? path.join(homeDir, ".toll-free-hooks");
-    await writeHookSettings(homeDir, { port, hookScriptDir });
+    await writeHookSettings(homeDir, { socketPath, hookScriptDir });
 
     const env: Record<string, string> = { ...process.env as Record<string, string> };
     if (this.config.env) {

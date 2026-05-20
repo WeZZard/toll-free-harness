@@ -1,35 +1,57 @@
 import { afterEach, describe, expect, test } from "vitest";
+import { request as httpRequest } from "node:http";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { HookServer } from "../src/hook_server.js";
 import type { HookEvent } from "../src/types.js";
 
+function postToSocket(socketPath: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = httpRequest(
+      { socketPath, path: "/hook", method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) } },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>));
+      },
+    );
+    req.on("error", reject);
+    req.end(data);
+  });
+}
+
 describe("HookServer", () => {
   let server: HookServer;
+  let sockPath: string;
 
   afterEach(async () => {
     await server?.stop();
   });
 
-  test("start() returns a port and stop() cleans up", async () => {
+  function newSocketPath(): string {
+    sockPath = path.join(tmpdir(), `test-hook-${randomUUID()}.sock`);
+    return sockPath;
+  }
+
+  test("start() returns socket path and stop() cleans up", async () => {
     server = new HookServer();
-    const port = await server.start();
-    expect(port).toBeGreaterThan(0);
+    const result = await server.start(newSocketPath());
+    expect(result).toBe(sockPath);
     await server.stop();
   });
 
   test("POST JSON fires event listener with correct kind and toolName", async () => {
     server = new HookServer();
-    const port = await server.start();
+    await server.start(newSocketPath());
 
     const received: HookEvent[] = [];
     server.setEventListener((event) => received.push(event));
 
-    await fetch(`http://127.0.0.1:${port}/hook`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        hook_event_name: "PreToolUse",
-        tool_name: "Bash",
-      }),
+    await postToSocket(sockPath, {
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
     });
 
     expect(received).toHaveLength(1);
@@ -39,19 +61,13 @@ describe("HookServer", () => {
 
   test("handler set for event name returns handler response", async () => {
     server = new HookServer();
-    const port = await server.start();
+    await server.start(newSocketPath());
 
     server.setHandler("PreToolUse", async () => ({
       hookSpecificOutput: { permissionDecision: "deny" },
     }));
 
-    const response = await fetch(`http://127.0.0.1:${port}/hook`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hook_event_name: "PreToolUse" }),
-    });
-
-    const json = await response.json();
+    const json = await postToSocket(sockPath, { hook_event_name: "PreToolUse" });
     expect(json).toEqual({
       hookSpecificOutput: { permissionDecision: "deny" },
     });
@@ -59,32 +75,21 @@ describe("HookServer", () => {
 
   test("no handler returns empty JSON response", async () => {
     server = new HookServer();
-    const port = await server.start();
+    await server.start(newSocketPath());
 
-    const response = await fetch(`http://127.0.0.1:${port}/hook`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hook_event_name: "PostToolUse" }),
-    });
-
-    const json = await response.json();
+    const json = await postToSocket(sockPath, { hook_event_name: "PostToolUse" });
     expect(json).toEqual({});
   });
 
   test("event kind mapping (PreToolUse, PostToolUse, PermissionRequest, Stop)", async () => {
     server = new HookServer();
-    const port = await server.start();
+    await server.start(newSocketPath());
 
     const received: HookEvent[] = [];
     server.setEventListener((event) => received.push(event));
 
-    const hookEventNames = ["PreToolUse", "PostToolUse", "PermissionRequest", "Stop"];
-    for (const name of hookEventNames) {
-      await fetch(`http://127.0.0.1:${port}/hook`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hook_event_name: name }),
-      });
+    for (const name of ["PreToolUse", "PostToolUse", "PermissionRequest", "Stop"]) {
+      await postToSocket(sockPath, { hook_event_name: name });
     }
 
     expect(received.map((e) => e.kind)).toEqual([

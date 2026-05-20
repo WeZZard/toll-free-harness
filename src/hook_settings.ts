@@ -2,7 +2,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 export interface HookSettingsConfig {
-  port: number;
+  socketPath: string;
   hookScriptDir: string;
   scriptName?: string;
 }
@@ -12,7 +12,7 @@ export async function writeHookSettings(homeDir: string, config: HookSettingsCon
 
   const scriptName = config.scriptName ?? "toll-free-hook.sh";
   const scriptPath = path.join(config.hookScriptDir, scriptName);
-  await writeFile(scriptPath, buildHookScript(config.port), { mode: 0o755 });
+  await writeFile(scriptPath, buildHookScript(config.socketPath), { mode: 0o755 });
 
   const settingsPath = path.join(homeDir, ".claude", "settings.json");
   const settings = buildSettingsJson(scriptPath);
@@ -20,12 +20,12 @@ export async function writeHookSettings(homeDir: string, config: HookSettingsCon
   await writeFile(settingsPath, JSON.stringify(settings, null, 2), "utf8");
 }
 
-function buildHookScript(port: number): string {
+function buildHookScript(socketPath: string): string {
   return [
     "#!/usr/bin/env bash",
     "set -euo pipefail",
     `INPUT=$(cat)`,
-    `RESPONSE=$(echo "$INPUT" | curl -s -X POST -H "Content-Type: application/json" -d @- "http://127.0.0.1:${port}/hook" 2>/dev/null)`,
+    `RESPONSE=$(echo "$INPUT" | curl -s --unix-socket "${socketPath}" -X POST -H "Content-Type: application/json" -d @- "http://localhost/hook" 2>/dev/null)`,
     `echo "$RESPONSE"`,
   ].join("\n") + "\n";
 }
