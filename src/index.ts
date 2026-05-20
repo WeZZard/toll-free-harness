@@ -20,3 +20,7 @@ export type {
   AskUserQuestionHandler,
   ExitPlanModeHandler,
 } from "./claude_code/types.js";
+
+export { SessionRecorder } from "./recorder/recorder.js";
+export { SessionPlayer } from "./recorder/player.js";
+export type { RecordedEvent, SessionRecording } from "./recorder/types.js";
