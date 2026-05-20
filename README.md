@@ -1,8 +1,10 @@
 # toll-free-harness
 
-Interactive PTY harness for local coding agents.
+Full-featured user interaction simulator for terminal-based coding agents.
 
-Spawns an interactive agent CLI in a pseudo-terminal, connects hook events to local listeners, and lets you respond through keystroke injection. Hooks are read-only (observe events, never send data back). All interaction goes through the PTY — faithful to how a real user operates the terminal.
+`toll-free-harness` models the complete user interaction surface of a coding agent CLI — prompting, answering questions, reviewing plans — as typed APIs. It spawns the agent in a local PTY, observes events through read-only hooks, and responds through the same keystroke channel a real user would.
+
+Currently supports **Claude Code**. The framework is designed to add support for other coding agents whose headless modes do not fully expose the interactive user experience.
 
 The name is a joke about toll booths around developer workflows.
 
@@ -19,11 +21,7 @@ pnpm add toll-free-harness node-pty
 ## Quick start
 
 ```typescript
-import {
-  ClaudeCodeSession,
-  selectOptionByNumber,
-  approveExitPlanMode,
-} from "toll-free-harness";
+import { ClaudeCodeSession } from "toll-free-harness";
 
 const session = new ClaudeCodeSession({
   args: ["--model", "opus"],
@@ -31,55 +29,62 @@ const session = new ClaudeCodeSession({
   prompt: "Fix the failing tests",
 });
 
-// Hooks are read-only: observe events, respond via PTY keystrokes
-session.onPreToolUse("AskUserQuestion", async (event) => {
-  // event.toolInput has the question data
-  session.write(selectOptionByNumber(0)); // select first option
+// Handle the agent's questions — return which option to select
+session.onAskUserQuestion(async (event) => {
+  console.log(event.text);
+  console.log(event.questions[0]?.options.map((o, i) => `${i}: ${o.label}`));
+  return { selectedIndex: 0 };
 });
 
-session.onPreToolUse("ExitPlanMode", async (event) => {
-  session.write(approveExitPlanMode());
+// Handle plan review — approve or reject with feedback
+session.onExitPlanMode(async (event) => {
+  console.log(event.planText.slice(0, 200));
+  return { decision: "approve" };
 });
 
 const result = await session.run();
+
+// Send a follow-up prompt (with optional images)
+session.sendPrompt("Now add tests for the fix", {
+  images: ["/tmp/screenshot.png"],
+});
 ```
 
-## API
+## User interactions
 
-### ClaudeCodeSession
+The framework models three user interactions as dedicated typed APIs:
 
-| Method | Description |
-|---|---|
-| `onPreToolUse(tool, listener)` | Observe before tool executes (blocking — keystrokes buffer until UI renders) |
-| `onPermissionRequest(tool, listener)` | Observe permission requests (non-blocking — UI renders in parallel) |
-| `onPostToolUse(tool, listener)` | Observe after tool executes |
-| `onStop(listener)` | Observe session end |
-| `onUserPromptSubmit(listener)` | Observe prompt submission |
-| `write(data)` | Inject keystrokes into the PTY |
-| `run()` | Start session, resolve on exit |
-| `stop()` | Kill the PTY process |
-| `guardrail` | `EventSequenceGuardrail` for deterministic event verification |
+| Interaction | API | You provide | Library does |
+|---|---|---|---|
+| **Prompting** | `sendPrompt(text, options?)` | Text + optional image paths | Injects keystrokes into PTY |
+| **Answering questions** | `onAskUserQuestion(handler)` | `{ selectedIndex }` | Navigates and selects the option |
+| **Reviewing plans** | `onExitPlanMode(handler)` | `{ decision: "approve" }` or `{ decision: "reject", feedback }` | Approves or rejects via keystrokes |
 
-Use `"*"` as tool name for wildcard matching. Listeners receive `HookRequest` with `toolName`, `toolInput`, and `payload`. All hooks return `{}` internally — listeners cannot send data back to the agent.
+There is no raw `write()` — the library translates your typed decisions into the correct keystrokes internally.
 
-### Keystroke helpers
+## Hook listeners (read-only)
 
-| Function | Output | Use case |
-|---|---|---|
-| `selectOptionByNumber(i)` | `"1"`–`"9"` | Select numbered menu option (0-indexed) |
-| `navigateAndSelect(from, to)` | Arrow keys + Enter | Navigate to option and confirm |
-| `toggleAndConfirm(from, indices)` | Arrows + Space + Enter | Multi-select toggle and confirm |
-| `approveExitPlanMode()` | `"1"` | Approve plan |
-| `rejectExitPlanMode()` | Escape | Reject plan |
-| `typeMessage(text)` | `text` + Enter | Type text and submit |
-| `approveToolPermission()` | `"y"` | Approve tool permission |
-| `denyToolPermission()` | `"n"` | Deny tool permission |
-| `arrowDown(n)` / `arrowUp(n)` | Arrow key × n | Raw navigation |
-| `pressEnter()` / `pressSpace()` / `pressEscape()` | Single key | Raw keys |
+Observe agent events without sending data back:
 
-### EventSequenceGuardrail
+```typescript
+session.onPreToolUse("Bash", (event) => {
+  console.log(`Running: ${event.toolInput?.command}`);
+});
 
-Wait for hook events with timeouts:
+session.onPostToolUse("*", (event) => {
+  console.log(`Tool ${event.toolName} completed`);
+});
+
+session.onStop(() => {
+  console.log("Session ended");
+});
+```
+
+Available: `onPreToolUse`, `onPostToolUse`, `onPermissionRequest`, `onStop`, `onUserPromptSubmit`. All are read-only — hooks return `{}` internally and never send data back to the agent.
+
+## Event guardrail
+
+Wait for specific events with timeouts for deterministic test flows:
 
 ```typescript
 const event = await session.guardrail.expect(
@@ -88,9 +93,9 @@ const event = await session.guardrail.expect(
 );
 ```
 
-### Timing model
+## Timing model
 
-`PreToolUse` and `Stop` hooks are **blocking** — Claude Code waits for them to complete. Keystrokes written to the PTY during a blocking hook callback buffer in the kernel and are consumed by the UI after the hook returns. `PermissionRequest` is **non-blocking** — the dialog renders in parallel with the hook.
+`PreToolUse` and `Stop` hooks are **blocking** — the agent waits for them. Keystrokes injected during a blocking hook callback buffer in PTY stdin and are consumed by the UI after the hook returns. `PermissionRequest` is **non-blocking** — the dialog renders in parallel.
 
 ## How it works
 
@@ -98,10 +103,10 @@ const event = await session.guardrail.expect(
 2. Writes hook configuration to `$HOME/.claude/settings.json`
 3. Spawns the agent in a PTY with your args and prompt
 4. Agent hooks call a bundled Node.js client that posts events to the socket
-5. Your listeners observe events; you respond via `write()` keystrokes
+5. Your interaction handlers and listeners receive events; responses go through PTY keystrokes
 6. On exit, the socket is cleaned up
 
-**Warning:** `run()` overwrites `$HOME/.claude/settings.json` without backup. Use `env.HOME` to isolate:
+**Note:** `run()` overwrites `$HOME/.claude/settings.json`. Use `env.HOME` to isolate:
 
 ```typescript
 new ClaudeCodeSession({ ..., env: { HOME: "/tmp/isolated" } });
