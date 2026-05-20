@@ -11,7 +11,7 @@ import type {
 } from "./types.js";
 import { HookServer } from "./hook_server.js";
 import { writeHookSettings } from "./hook_settings.js";
-import { EventSequenceGuardrail } from "./guardrail.js";
+import { EventSequenceGuardrail } from "../core/guardrail.js";
 
 export class ClaudeCodeSession {
   private ptyProcess: pty.IPty | undefined;

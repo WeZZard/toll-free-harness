@@ -1,18 +1,16 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { HookSettingsConfig } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function resolveHookClientPath(): string {
-  return path.join(__dirname, "hook_client.js");
+  return path.join(__dirname, "claude_code", "hook_client.js");
 }
 
-export interface HookSettingsConfig {
-  socketPath: string;
-  hookScriptDir?: string;
-}
+export type { HookSettingsConfig };
 
 export async function writeHookSettings(homeDir: string, config: HookSettingsConfig): Promise<void> {
   const hookClientPath = resolveHookClientPath();

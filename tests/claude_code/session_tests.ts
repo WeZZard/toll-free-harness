@@ -11,7 +11,7 @@ vi.mock("node-pty", () => ({
   },
 }));
 
-vi.mock("../src/hook_server.js", () => {
+vi.mock("../../src/claude_code/hook_server.js", () => {
   return {
     HookServer: vi.fn().mockImplementation(() => ({
       start: vi.fn().mockResolvedValue(9999),
@@ -23,12 +23,12 @@ vi.mock("../src/hook_server.js", () => {
   };
 });
 
-vi.mock("../src/hook_settings.js", () => ({
+vi.mock("../../src/claude_code/hook_settings.js", () => ({
   writeHookSettings: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Import after mocks are declared
-const { ClaudeCodeSession } = await import("../src/session.js");
+const { ClaudeCodeSession } = await import("../../src/claude_code/session.js");
 
 describe("ClaudeCodeSession", () => {
   test("constructor stores config", () => {

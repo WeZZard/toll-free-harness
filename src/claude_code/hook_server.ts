@@ -1,7 +1,8 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Socket } from "node:net";
 import { unlink } from "node:fs/promises";
-import type { HookEvent, HookEventKind, HookHandler, HookRequest, HookResponse } from "./types.js";
+import type { HookEvent, HookEventKind } from "../core/types.js";
+import type { HookHandler, HookRequest, HookResponse } from "./types.js";
 
 function mapEventKind(hookEventName: string): HookEventKind {
   switch (hookEventName) {

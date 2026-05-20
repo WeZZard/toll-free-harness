@@ -3,8 +3,8 @@ import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { HookServer } from "../src/hook_server.js";
-import type { HookEvent } from "../src/types.js";
+import { HookServer } from "../../src/claude_code/hook_server.js";
+import type { HookEvent } from "../../src/core/types.js";
 
 function postToSocket(socketPath: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {

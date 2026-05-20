@@ -1,17 +1,3 @@
-export type HookEventKind =
-  | "pre_tool_use"
-  | "permission_request"
-  | "post_tool_use"
-  | "user_prompt_submit"
-  | "stop";
-
-export interface HookEvent {
-  kind: HookEventKind;
-  toolName?: string;
-  payload: Record<string, unknown>;
-  receivedAt: number;
-}
-
 export interface HookRequest {
   hookEventName: string;
   toolName?: string;
@@ -38,7 +24,7 @@ export interface SessionResult {
   signal: number;
 }
 
-export interface ExpectedEvent {
-  kind: HookEventKind;
-  toolName?: string;
+export interface HookSettingsConfig {
+  socketPath: string;
+  hookScriptDir?: string;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { selectOptionByNumber, approveExitPlanMode, rejectExitPlanMode, typeMessage } from "../src/keystroke.js";
+import { selectOptionByNumber, approveExitPlanMode, rejectExitPlanMode, typeMessage } from "../../src/claude_code/keystroke.js";
 
 describe("selectOptionByNumber", () => {
   test("maps 0-indexed option to 1-indexed key string", () => {

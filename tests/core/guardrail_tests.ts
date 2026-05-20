@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "vitest";
-import { EventSequenceGuardrail, GuardrailTimeoutError } from "../src/guardrail.js";
-import type { HookEvent } from "../src/types.js";
+import { EventSequenceGuardrail, GuardrailTimeoutError } from "../../src/core/guardrail.js";
+import type { HookEvent } from "../../src/core/types.js";
 
 describe("EventSequenceGuardrail", () => {
   let guardrail: EventSequenceGuardrail;
