@@ -9,12 +9,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function resolveHookClientSource(): string {
-  // In the built dist, hook_client.js is a sibling file
-  // (tsup builds src/claude_code/hook_client.ts -> dist/claude_code/hook_client.js)
-  const jsPath = path.join(__dirname, "hook_client.js");
-  // When running from source (e.g. vitest via tsx), fall back to .ts
-  const tsPath = path.join(__dirname, "hook_client.ts");
-  return existsSync(jsPath) ? jsPath : tsPath;
+  const candidates = [
+    path.join(__dirname, "hook_client.js"),
+    path.join(__dirname, "claude_code", "hook_client.js"),
+    path.join(__dirname, "hook_client.ts"),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(`hook_client not found in any of: ${candidates.join(", ")}`);
 }
 
 export interface GeneratedPlugin {
