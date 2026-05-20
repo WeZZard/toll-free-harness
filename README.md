@@ -8,17 +8,9 @@ Currently supports **Claude Code**. The framework is designed to add support for
 
 The name is a joke about toll booths around developer workflows.
 
-## Quick start — CLI
+## What this project is not
 
-No install needed. Replace `claude -p` with:
-
-```bash
-npx toll-free-harness claude -- -p "fix the failing tests"
-npx toll-free-harness claude -- -p "explain this error" --allowedTools "Read"
-cat build.log | npx toll-free-harness claude -- -p "what went wrong?"
-```
-
-When `-p` is detected, the tool routes the session through an interactive PTY harness. Without `-p`, it passes through to `claude` directly.
+Not an API proxy, credential-sharing service, or billing workaround. Users run their own local tools with their own accounts and must comply with those tools' terms.
 
 ## Migrating from claude -p
 
@@ -34,17 +26,23 @@ curl -s https://raw.githubusercontent.com/WeZZard/toll-free-harness/main/MIGRATI
 
 Ask your agent to convert your `claude -p` scripts to use toll-free-harness.
 
-## What this project is not
+## Quick start — CLI
 
-Not an API proxy, credential-sharing service, or billing workaround. Users run their own local tools with their own accounts and must comply with those tools' terms.
-
-## Install
+No install needed. Replace `claude -p` with:
 
 ```bash
-pnpm add toll-free-harness node-pty
+npx toll-free-harness claude -- -p "fix the failing tests"
+npx toll-free-harness claude -- -p "explain this error" --allowedTools "Read"
+cat build.log | npx toll-free-harness claude -- -p "what went wrong?"
 ```
 
+When `-p` is detected, the tool routes the session through an interactive PTY harness. Without `-p`, it passes through to `claude` directly.
+
 ## Quick start — Library API
+
+```bash
+pnpm add toll-free-harness
+```
 
 ```typescript
 import { ClaudeCodeSession } from "toll-free-harness";
@@ -76,7 +74,7 @@ session.sendPrompt("Now add tests for the fix", {
 });
 ```
 
-## User interactions
+### User interactions
 
 The framework models three user interactions as dedicated typed APIs:
 
@@ -88,7 +86,7 @@ The framework models three user interactions as dedicated typed APIs:
 
 There is no raw `write()` — the library translates your typed decisions into the correct keystrokes internally.
 
-## Hook listeners (read-only)
+### Hook listeners (read-only)
 
 Observe agent events without sending data back:
 
@@ -108,7 +106,7 @@ session.onStop(() => {
 
 Available: `onPreToolUse`, `onPostToolUse`, `onPermissionRequest`, `onStop`, `onUserPromptSubmit`. All are read-only — hooks return `{}` internally and never send data back to the agent.
 
-## Event guardrail
+### Event guardrail
 
 Wait for specific events with timeouts for deterministic test flows:
 
@@ -119,7 +117,7 @@ const event = await session.guardrail.expect(
 );
 ```
 
-## Timing model
+### Timing model
 
 `PreToolUse` and `Stop` hooks are **blocking** — the agent waits for them. Keystrokes injected during a blocking hook callback buffer in PTY stdin and are consumed by the UI after the hook returns. `PermissionRequest` is **non-blocking** — the dialog renders in parallel.
 
