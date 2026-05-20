@@ -73,7 +73,6 @@ export class ClaudeCodeSession {
 
   async run(): Promise<SessionResult> {
     const homeDir = this.config.env?.HOME ?? process.env.HOME ?? "/tmp";
-    const hookScriptDir = this.config.hookScriptDir ?? path.join(homeDir, ".toll-free-hooks");
     const socketPath = path.join(os.tmpdir(), `toll-free-${randomUUID()}.sock`);
 
     await this.hookServer.start(socketPath);
@@ -136,7 +135,7 @@ export class ClaudeCodeSession {
       return {};
     });
 
-    await writeHookSettings(homeDir, { socketPath, hookScriptDir });
+    await writeHookSettings(homeDir, { socketPath });
 
     const env: Record<string, string> = { ...process.env as Record<string, string> };
     if (this.config.env) {

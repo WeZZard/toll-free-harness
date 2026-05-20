@@ -31,7 +31,6 @@ export interface SessionConfig {
   bin?: string;
   cols?: number;
   rows?: number;
-  hookScriptDir?: string;
 }
 
 export interface SessionResult {

@@ -1,53 +1,47 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function resolveHookClientPath(): string {
+  return path.join(__dirname, "hook_client.js");
+}
 
 export interface HookSettingsConfig {
   socketPath: string;
-  hookScriptDir: string;
-  scriptName?: string;
+  hookScriptDir?: string;
 }
 
 export async function writeHookSettings(homeDir: string, config: HookSettingsConfig): Promise<void> {
-  await mkdir(config.hookScriptDir, { recursive: true });
-
-  const scriptName = config.scriptName ?? "toll-free-hook.sh";
-  const scriptPath = path.join(config.hookScriptDir, scriptName);
-  await writeFile(scriptPath, buildHookScript(config.socketPath), { mode: 0o755 });
+  const hookClientPath = resolveHookClientPath();
+  const command = `node ${hookClientPath} ${config.socketPath}`;
 
   const settingsPath = path.join(homeDir, ".claude", "settings.json");
-  const settings = buildSettingsJson(scriptPath);
+  const settings = buildSettingsJson(command);
   await mkdir(path.join(homeDir, ".claude"), { recursive: true });
   await writeFile(settingsPath, JSON.stringify(settings, null, 2), "utf8");
 }
 
-function buildHookScript(socketPath: string): string {
-  return [
-    "#!/usr/bin/env bash",
-    "set -euo pipefail",
-    `INPUT=$(cat)`,
-    `RESPONSE=$(echo "$INPUT" | curl -s --unix-socket "${socketPath}" -X POST -H "Content-Type: application/json" -d @- "http://localhost/hook" 2>/dev/null)`,
-    `echo "$RESPONSE"`,
-  ].join("\n") + "\n";
-}
-
-function buildSettingsJson(scriptPath: string): Record<string, unknown> {
+function buildSettingsJson(command: string): Record<string, unknown> {
   return {
     enabledPlugins: {},
     hooks: {
       PreToolUse: [
-        { matcher: "", hooks: [{ type: "command", command: scriptPath, timeout: 120 }] },
+        { matcher: "", hooks: [{ type: "command", command, timeout: 120 }] },
       ],
       PermissionRequest: [
-        { matcher: "", hooks: [{ type: "command", command: scriptPath, timeout: 120 }] },
+        { matcher: "", hooks: [{ type: "command", command, timeout: 120 }] },
       ],
       PostToolUse: [
-        { matcher: "", hooks: [{ type: "command", command: scriptPath, timeout: 10 }] },
+        { matcher: "", hooks: [{ type: "command", command, timeout: 10 }] },
       ],
       UserPromptSubmit: [
-        { matcher: "", hooks: [{ type: "command", command: scriptPath, timeout: 30 }] },
+        { matcher: "", hooks: [{ type: "command", command, timeout: 30 }] },
       ],
       Stop: [
-        { matcher: "", hooks: [{ type: "command", command: scriptPath, timeout: 30 }] },
+        { matcher: "", hooks: [{ type: "command", command, timeout: 30 }] },
       ],
     },
   };
