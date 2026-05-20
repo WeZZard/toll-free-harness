@@ -25,3 +25,44 @@ export interface SessionResult {
 export interface HookSettingsConfig {
   socketPath: string;
 }
+
+// === Dedicated interaction types ===
+
+export interface SendPromptOptions {
+  images?: string[];
+}
+
+export interface QuestionOption {
+  label: string;
+  description: string;
+}
+
+export interface QuestionSpec {
+  question: string;
+  header: string;
+  options: QuestionOption[];
+  multiSelect: boolean;
+}
+
+export interface AskUserQuestionEvent {
+  text: string;
+  questions: QuestionSpec[];
+  payload: Record<string, unknown>;
+}
+
+export interface QuestionAnswer {
+  selectedIndex: number;
+}
+
+export interface ExitPlanModeEvent {
+  planText: string;
+  planFilePath: string;
+  payload: Record<string, unknown>;
+}
+
+export type PlanDecision =
+  | { decision: "approve" }
+  | { decision: "reject"; feedback: string };
+
+export type AskUserQuestionHandler = (event: AskUserQuestionEvent) => Promise<QuestionAnswer>;
+export type ExitPlanModeHandler = (event: ExitPlanModeEvent) => Promise<PlanDecision>;

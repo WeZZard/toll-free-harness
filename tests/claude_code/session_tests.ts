@@ -40,48 +40,75 @@ describe("ClaudeCodeSession", () => {
     expect(session.config).toBe(config);
   });
 
-  test("onPreToolUse returns this for fluent chaining", () => {
+  test("onAskUserQuestion returns this (fluent)", () => {
+    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
+    const result = session.onAskUserQuestion(async () => ({ selectedIndex: 0 }));
+    expect(result).toBe(session);
+  });
+
+  test("onExitPlanMode returns this (fluent)", () => {
+    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
+    const result = session.onExitPlanMode(async () => ({ decision: "approve" as const }));
+    expect(result).toBe(session);
+  });
+
+  test("sendPrompt is a public method", () => {
+    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
+    expect(typeof session.sendPrompt).toBe("function");
+  });
+
+  test("write is not exposed as public", () => {
+    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
+    // TypeScript enforces this at compile time via private modifier.
+    // At runtime, verify the property name does not exist on the instance.
+    expect("write" in session).toBe(false);
+  });
+
+  test("onPreToolUse returns this (fluent, read-only)", () => {
     const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
     const result = session.onPreToolUse("Bash", async () => {});
     expect(result).toBe(session);
   });
 
-  test("onPermissionRequest returns this for fluent chaining", () => {
-    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
-    const result = session.onPermissionRequest("Bash", async () => {});
-    expect(result).toBe(session);
-  });
-
-  test("onPostToolUse returns this for fluent chaining", () => {
+  test("onPostToolUse returns this (fluent, read-only)", () => {
     const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
     const result = session.onPostToolUse("Bash", async () => {});
     expect(result).toBe(session);
   });
 
-  test("onStop returns this for fluent chaining", () => {
+  test("onPermissionRequest returns this (fluent)", () => {
+    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
+    const result = session.onPermissionRequest("Bash", async () => {});
+    expect(result).toBe(session);
+  });
+
+  test("onStop returns this (fluent)", () => {
     const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
     const result = session.onStop(async () => {});
     expect(result).toBe(session);
   });
 
-  test("onUserPromptSubmit returns this for fluent chaining", () => {
+  test("onUserPromptSubmit returns this (fluent)", () => {
     const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
     const result = session.onUserPromptSubmit(async () => {});
     expect(result).toBe(session);
   });
 
-  test("fluent API allows chaining multiple listeners", () => {
+  test("guardrail is accessible", () => {
+    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
+    expect(session.guardrail).toBeDefined();
+  });
+
+  test("chaining multiple APIs", () => {
     const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
     const result = session
+      .onAskUserQuestion(async () => ({ selectedIndex: 0 }))
+      .onExitPlanMode(async () => ({ decision: "approve" as const }))
       .onPreToolUse("Bash", async () => {})
       .onPostToolUse("Bash", async () => {})
       .onPermissionRequest("*", async () => {})
-      .onStop(async () => {});
+      .onStop(async () => {})
+      .onUserPromptSubmit(async () => {});
     expect(result).toBe(session);
-  });
-
-  test("guardrail property is accessible", () => {
-    const session = new ClaudeCodeSession({ args: [], cwd: "/tmp", prompt: "test" });
-    expect(session.guardrail).toBeDefined();
   });
 });

@@ -7,16 +7,35 @@ import type {
   SessionResult,
   HookListener,
   HookRequest,
+  AskUserQuestionEvent,
+  QuestionAnswer,
+  AskUserQuestionHandler,
+  ExitPlanModeEvent,
+  PlanDecision,
+  ExitPlanModeHandler,
+  SendPromptOptions,
 } from "./types.js";
 import { HookServer } from "./hook_server.js";
 import { writeHookSettings } from "./hook_settings.js";
 import { EventSequenceGuardrail } from "../core/guardrail.js";
+import {
+  selectOptionByNumber,
+  navigateAndSelect,
+  approveExitPlanMode,
+  pressEscape,
+  typeMessage,
+} from "./keystroke.js";
 
 export class ClaudeCodeSession {
   private ptyProcess: pty.IPty | undefined;
   private hookServer: HookServer;
   private _guardrail: EventSequenceGuardrail;
 
+  // Dedicated interaction handlers
+  private askUserQuestionHandler: AskUserQuestionHandler | undefined;
+  private exitPlanModeHandler: ExitPlanModeHandler | undefined;
+
+  // Read-only hook listeners
   private listeners: {
     preToolUse: Map<string, HookListener>;
     permissionRequest: Map<string, HookListener>;
@@ -36,6 +55,29 @@ export class ClaudeCodeSession {
       userPromptSubmit: [],
     };
   }
+
+  // === Dedicated interaction APIs ===
+
+  sendPrompt(text: string, options?: SendPromptOptions): void {
+    if (!this.ptyProcess) return;
+    let message = text;
+    if (options?.images?.length) {
+      message = `${text} ${options.images.join(" ")}`;
+    }
+    this.ptyProcess.write(typeMessage(message));
+  }
+
+  onAskUserQuestion(handler: AskUserQuestionHandler): this {
+    this.askUserQuestionHandler = handler;
+    return this;
+  }
+
+  onExitPlanMode(handler: ExitPlanModeHandler): this {
+    this.exitPlanModeHandler = handler;
+    return this;
+  }
+
+  // === Read-only hook listeners ===
 
   onPreToolUse(toolName: string, listener: HookListener): this {
     this.listeners.preToolUse.set(toolName, listener);
@@ -62,10 +104,6 @@ export class ClaudeCodeSession {
     return this;
   }
 
-  write(data: string): void {
-    this.ptyProcess?.write(data);
-  }
-
   get guardrail(): EventSequenceGuardrail {
     return this._guardrail;
   }
@@ -80,11 +118,61 @@ export class ClaudeCodeSession {
       this._guardrail.push(event);
     });
 
+    // PreToolUse: dedicated handlers for AskUserQuestion/ExitPlanMode + user listeners
     this.hookServer.setHandler("PreToolUse", async (req: HookRequest) => {
+      // Handle AskUserQuestion via dedicated handler
+      if (req.toolName === "AskUserQuestion" && this.askUserQuestionHandler) {
+        const toolInput = req.toolInput ?? {};
+        const questions = Array.isArray(toolInput.questions)
+          ? (toolInput.questions as Array<Record<string, unknown>>).map((q) => ({
+              question: String(q?.question ?? ""),
+              header: String(q?.header ?? ""),
+              options: Array.isArray(q?.options)
+                ? (q.options as Array<Record<string, unknown>>).map((o) => ({
+                    label: String(o?.label ?? ""),
+                    description: String(o?.description ?? ""),
+                  }))
+                : [],
+              multiSelect: Boolean(q?.multiSelect),
+            }))
+          : [];
+        const text = questions.map((q) => q.question).join("\n");
+        const event: AskUserQuestionEvent = { text, questions, payload: req.payload };
+        const answer = await this.askUserQuestionHandler(event);
+        if (this.ptyProcess) {
+          if (answer.selectedIndex >= 0 && answer.selectedIndex <= 8) {
+            this.ptyProcess.write(selectOptionByNumber(answer.selectedIndex));
+          } else {
+            this.ptyProcess.write(navigateAndSelect(0, answer.selectedIndex));
+          }
+        }
+      }
+
+      // Handle ExitPlanMode via dedicated handler
+      if (req.toolName === "ExitPlanMode" && this.exitPlanModeHandler) {
+        const toolInput = req.toolInput ?? {};
+        const event: ExitPlanModeEvent = {
+          planText: String(toolInput.plan ?? toolInput.text ?? ""),
+          planFilePath: String(toolInput.planFilePath ?? ""),
+          payload: req.payload,
+        };
+        const decision = await this.exitPlanModeHandler(event);
+        if (this.ptyProcess) {
+          if (decision.decision === "approve") {
+            this.ptyProcess.write(approveExitPlanMode());
+          } else {
+            this.ptyProcess.write(pressEscape());
+            this.ptyProcess.write(typeMessage(decision.feedback));
+          }
+        }
+      }
+
+      // Call user's read-only listeners
       const listener =
         this.listeners.preToolUse.get(req.toolName ?? "") ??
         this.listeners.preToolUse.get("*");
       if (listener) await listener(req);
+
       return {};
     });
 
@@ -120,7 +208,9 @@ export class ClaudeCodeSession {
 
     await writeHookSettings(homeDir, { socketPath });
 
+    // Auto-inject survey suppression, then overlay user-provided env
     const env: Record<string, string> = { ...process.env as Record<string, string> };
+    env.CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
     if (this.config.env) {
       Object.assign(env, this.config.env);
     }
