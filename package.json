@@ -20,8 +20,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "node-pty": "^1.1.0"
+  "dependencies": {},
+  "peerDependencies": {
+    "node-pty": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.3",
