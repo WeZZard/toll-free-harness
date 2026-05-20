@@ -120,9 +120,17 @@ export class ClaudeCodeSession {
       this._guardrail.push(event);
     });
 
-    // PreToolUse: dedicated handlers for AskUserQuestion/ExitPlanMode + user listeners
+    // PreToolUse: read-only observation + user listeners
     this.hookServer.setHandler("PreToolUse", async (req: HookRequest) => {
-      // Handle AskUserQuestion via dedicated handler
+      const listener =
+        this.listeners.preToolUse.get(req.toolName ?? "") ??
+        this.listeners.preToolUse.get("*");
+      if (listener) await listener(req);
+      return {};
+    });
+
+    // PermissionRequest: inject keystrokes here (fires when UI is rendering)
+    this.hookServer.setHandler("PermissionRequest", async (req: HookRequest) => {
       if (req.toolName === "AskUserQuestion" && this.askUserQuestionHandler) {
         const toolInput = req.toolInput ?? {};
         const questions = Array.isArray(toolInput.questions)
@@ -150,7 +158,6 @@ export class ClaudeCodeSession {
         }
       }
 
-      // Handle ExitPlanMode via dedicated handler
       if (req.toolName === "ExitPlanMode" && this.exitPlanModeHandler) {
         const toolInput = req.toolInput ?? {};
         const event: ExitPlanModeEvent = {
@@ -169,16 +176,6 @@ export class ClaudeCodeSession {
         }
       }
 
-      // Call user's read-only listeners
-      const listener =
-        this.listeners.preToolUse.get(req.toolName ?? "") ??
-        this.listeners.preToolUse.get("*");
-      if (listener) await listener(req);
-
-      return {};
-    });
-
-    this.hookServer.setHandler("PermissionRequest", async (req: HookRequest) => {
       const listener =
         this.listeners.permissionRequest.get(req.toolName ?? "") ??
         this.listeners.permissionRequest.get("*");
