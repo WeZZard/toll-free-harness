@@ -16,7 +16,7 @@ import type {
   SendPromptOptions,
 } from "./types.js";
 import { HookServer } from "./hook_server.js";
-import { writeHookSettings } from "./hook_settings.js";
+import { generatePlugin, type GeneratedPlugin } from "./plugin_generator.js";
 import { EventSequenceGuardrail } from "../core/guardrail.js";
 import {
   selectOptionByNumber,
@@ -28,6 +28,7 @@ import {
 
 export class ClaudeCodeSession {
   private ptyProcess: pty.IPty | undefined;
+  private plugin: GeneratedPlugin | undefined;
   private hookServer: HookServer;
   private _guardrail: EventSequenceGuardrail;
 
@@ -109,7 +110,6 @@ export class ClaudeCodeSession {
   }
 
   async run(): Promise<SessionResult> {
-    const homeDir = this.config.env?.HOME ?? process.env.HOME ?? "/tmp";
     const socketPath = path.join(os.tmpdir(), `toll-free-${randomUUID()}.sock`);
 
     await this.hookServer.start(socketPath);
@@ -206,7 +206,7 @@ export class ClaudeCodeSession {
       return {};
     });
 
-    await writeHookSettings(homeDir, { socketPath });
+    this.plugin = await generatePlugin(socketPath);
 
     // Auto-inject survey suppression, then overlay user-provided env
     const env: Record<string, string> = { ...process.env as Record<string, string> };
@@ -215,9 +215,15 @@ export class ClaudeCodeSession {
       Object.assign(env, this.config.env);
     }
 
+    const spawnArgs = [
+      "--plugin-dir", this.plugin.pluginDir,
+      ...this.config.args,
+      this.config.prompt,
+    ];
+
     this.ptyProcess = pty.spawn(
       this.config.bin ?? "claude",
-      [...this.config.args, this.config.prompt],
+      spawnArgs,
       {
         name: "xterm-256color",
         cols: this.config.cols ?? 120,
@@ -236,6 +242,7 @@ export class ClaudeCodeSession {
     } finally {
       this._guardrail.dispose();
       await this.hookServer.stop();
+      await this.plugin?.cleanup();
     }
   }
 

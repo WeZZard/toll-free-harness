@@ -99,18 +99,14 @@ const event = await session.guardrail.expect(
 
 ## How it works
 
-1. `run()` starts an HTTP server on a Unix domain socket (`/tmp/toll-free-<uuid>.sock`)
-2. Writes hook configuration to `$HOME/.claude/settings.json`
-3. Spawns the agent in a PTY with your args and prompt
-4. Agent hooks call a bundled Node.js client that posts events to the socket
+1. `run()` generates a temporary plugin in `/tmp/toll-free-plugin-<uuid>/` containing a manifest, hook definitions, and a bundled hook client
+2. Starts an HTTP server on a Unix domain socket (`/tmp/toll-free-<uuid>.sock`)
+3. Spawns the agent in a PTY with `--plugin-dir /tmp/toll-free-plugin-<uuid>/` plus your args and prompt
+4. The agent loads the plugin and fires hooks as it runs. The hook client posts events to the socket.
 5. Your interaction handlers and listeners receive events; responses go through PTY keystrokes
-6. On exit, the socket is cleaned up
+6. On exit, the socket and plugin directory are cleaned up
 
-**Note:** `run()` overwrites `$HOME/.claude/settings.json`. Use `env.HOME` to isolate:
-
-```typescript
-new ClaudeCodeSession({ ..., env: { HOME: "/tmp/isolated" } });
-```
+No user-scope settings are modified. The plugin is self-contained and session-scoped.
 
 ## Cross-platform
 
