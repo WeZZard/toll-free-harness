@@ -8,6 +8,32 @@ Currently supports **Claude Code**. The framework is designed to add support for
 
 The name is a joke about toll booths around developer workflows.
 
+## Quick start — CLI
+
+No install needed. Replace `claude -p` with:
+
+```bash
+npx toll-free-harness claude -- -p "fix the failing tests"
+npx toll-free-harness claude -- -p "explain this error" --allowedTools "Read"
+cat build.log | npx toll-free-harness claude -- -p "what went wrong?"
+```
+
+When `-p` is detected, the tool routes the session through an interactive PTY harness. Without `-p`, it passes through to `claude` directly.
+
+## Migrating from claude -p
+
+Copy the migration guide and paste it to your coding agent:
+
+```bash
+# macOS
+curl -s https://raw.githubusercontent.com/WeZZard/toll-free-harness/main/MIGRATION.md | pbcopy
+
+# Linux
+curl -s https://raw.githubusercontent.com/WeZZard/toll-free-harness/main/MIGRATION.md | xclip -selection clipboard
+```
+
+Ask your agent to convert your `claude -p` scripts to use toll-free-harness.
+
 ## What this project is not
 
 Not an API proxy, credential-sharing service, or billing workaround. Users run their own local tools with their own accounts and must comply with those tools' terms.
@@ -18,7 +44,7 @@ Not an API proxy, credential-sharing service, or billing workaround. Users run t
 pnpm add toll-free-harness node-pty
 ```
 
-## Quick start
+## Quick start — Library API
 
 ```typescript
 import { ClaudeCodeSession } from "toll-free-harness";
@@ -111,16 +137,6 @@ No user-scope settings are modified. The plugin is self-contained and session-sc
 ## Cross-platform
 
 Uses Node.js `http.request({ socketPath })` for IPC — works on macOS, Linux, and Windows 10 1803+.
-
-## Migrating from claude -p
-
-Ask your coding agent to help you migrate:
-
-```
-curl -s https://raw.githubusercontent.com/WeZZard/toll-free-harness/main/MIGRATION.md | pbcopy
-```
-
-Paste the content to your agent and ask it to convert your `claude -p` scripts to use toll-free-harness.
 
 ## License
 
