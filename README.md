@@ -112,6 +112,16 @@ No user-scope settings are modified. The plugin is self-contained and session-sc
 
 Uses Node.js `http.request({ socketPath })` for IPC — works on macOS, Linux, and Windows 10 1803+.
 
+## Migrating from claude -p
+
+Ask your coding agent to help you migrate:
+
+```
+curl -s https://raw.githubusercontent.com/WeZZard/toll-free-harness/main/MIGRATION.md | pbcopy
+```
+
+Paste the content to your agent and ask it to convert your `claude -p` scripts to use toll-free-harness.
+
 ## License
 
 Apache-2.0

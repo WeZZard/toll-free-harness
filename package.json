@@ -11,16 +11,18 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "bin": {},
+  "bin": {
+    "toll-free-harness": "dist/cli/main.js"
+  },
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsup src/index.ts src/claude_code/hook_client.ts --format esm --target node22 --out-dir dist --dts --clean",
+    "build": "tsup src/index.ts src/claude_code/hook_client.ts src/cli/main.ts --format esm --target node22 --out-dir dist --dts --clean",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "peerDependencies": {
+  "dependencies": {
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
@@ -33,12 +35,12 @@
   },
   "files": [
     "dist",
-    "src"
+    "MIGRATION.md"
   ],
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/WeZZard/toll-free-harness.git"
+    "url": "git+https://github.com/WeZZard/toll-free-harness.git"
   },
   "keywords": [
     "claude-code",
