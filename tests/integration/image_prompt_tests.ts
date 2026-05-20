@@ -1,8 +1,7 @@
 import { describe, test, expect, beforeAll } from "vitest";
-import { createTestSession, isIntegration, hasFixture, generatedDir } from "./setup.js";
-import os from "node:os";
+import { createTestSession, isIntegration, hasFixture, generatedDir, createIsolatedHome } from "./setup.js";
 import path from "node:path";
-import { mkdtempSync, existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 
 const TEST_NAME = "image_prompt";
 
@@ -42,7 +41,7 @@ describe("Image prompt", () => {
         return;
       }
 
-      const tmpHome = mkdtempSync(path.join(os.tmpdir(), "tfh-img-"));
+      const tmpHome = createIsolatedHome();
 
       const session = await createTestSession(TEST_NAME, {
         args: [],

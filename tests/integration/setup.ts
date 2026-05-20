@@ -11,7 +11,8 @@ import type {
 } from "../../src/claude_code/types.js";
 import type { EventSequenceGuardrail } from "../../src/core/guardrail.js";
 import path from "node:path";
-import { existsSync } from "node:fs";
+import os from "node:os";
+import { existsSync, mkdirSync, writeFileSync, mkdtempSync, symlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,45 @@ export function fixturesDir(): string {
 
 export function generatedDir(): string {
   return GENERATED_DIR;
+}
+
+export function createIsolatedHome(): string {
+  const tmpHome = mkdtempSync(path.join(os.tmpdir(), "tfh-test-"));
+  const claudeDir = path.join(tmpHome, ".claude");
+  mkdirSync(claudeDir, { recursive: true });
+  writeFileSync(
+    path.join(tmpHome, ".claude.json"),
+    JSON.stringify({ hasCompletedOnboarding: true, lastOnboardingVersion: "99.0.0" }),
+    "utf8",
+  );
+  writeFileSync(
+    path.join(claudeDir, "settings.json"),
+    JSON.stringify({ enabledPlugins: {} }),
+    "utf8",
+  );
+  const realKeychains = path.join(os.homedir(), "Library", "Keychains");
+  if (existsSync(realKeychains)) {
+    mkdirSync(path.join(tmpHome, "Library"), { recursive: true });
+    symlinkSync(realKeychains, path.join(tmpHome, "Library", "Keychains"));
+  }
+  const realAppSupport = path.join(os.homedir(), "Library", "Application Support", "Claude");
+  if (existsSync(realAppSupport)) {
+    mkdirSync(path.join(tmpHome, "Library", "Application Support"), { recursive: true });
+    symlinkSync(realAppSupport, path.join(tmpHome, "Library", "Application Support", "Claude"));
+  }
+  const realClaudeJson = path.join(os.homedir(), ".claude.json");
+  if (existsSync(realClaudeJson)) {
+    symlinkSync(realClaudeJson, path.join(tmpHome, ".claude.json.real"));
+  }
+  const realEncKey = path.join(os.homedir(), ".claude", ".encryption_key");
+  if (existsSync(realEncKey)) {
+    symlinkSync(realEncKey, path.join(claudeDir, ".encryption_key"));
+  }
+  const realCreds = path.join(os.homedir(), ".claude", "credentials.json");
+  if (existsSync(realCreds)) {
+    symlinkSync(realCreds, path.join(claudeDir, "credentials.json"));
+  }
+  return tmpHome;
 }
 
 export interface TestSession {

@@ -16,7 +16,7 @@ import type {
   SendPromptOptions,
 } from "./types.js";
 import { HookServer } from "./hook_server.js";
-import { generatePlugin, type GeneratedPlugin } from "./plugin_generator.js";
+import { writeHookSettings } from "./hook_settings.js";
 import { EventSequenceGuardrail } from "../core/guardrail.js";
 import {
   selectOptionByNumber,
@@ -28,7 +28,6 @@ import {
 
 export class ClaudeCodeSession {
   private ptyProcess: pty.IPty | undefined;
-  private plugin: GeneratedPlugin | undefined;
   private hookServer: HookServer;
   private _guardrail: EventSequenceGuardrail;
 
@@ -113,8 +112,10 @@ export class ClaudeCodeSession {
     const socketPath = path.join(os.tmpdir(), `toll-free-${randomUUID()}.sock`);
 
     await this.hookServer.start(socketPath);
+    console.error(`[tfh] hook server started on ${socketPath}`);
 
     this.hookServer.setEventListener((event) => {
+      console.error(`[tfh] hook event: ${event.kind} tool=${event.toolName ?? "none"}`);
       this._guardrail.push(event);
     });
 
@@ -193,9 +194,11 @@ export class ClaudeCodeSession {
     });
 
     this.hookServer.setHandler("Stop", async (req: HookRequest) => {
+      console.error(`[tfh] Stop handler fired, killing PTY`);
       for (const listener of this.listeners.stop) {
         await listener(req.payload);
       }
+      this.ptyProcess?.kill();
       return {};
     });
 
@@ -206,7 +209,8 @@ export class ClaudeCodeSession {
       return {};
     });
 
-    this.plugin = await generatePlugin(socketPath);
+    const homeDir = this.config.env?.HOME ?? process.env.HOME ?? "/tmp";
+    await writeHookSettings(homeDir, { socketPath });
 
     // Auto-inject survey suppression, then overlay user-provided env
     const env: Record<string, string> = { ...process.env as Record<string, string> };
@@ -216,7 +220,6 @@ export class ClaudeCodeSession {
     }
 
     const spawnArgs = [
-      "--plugin-dir", this.plugin.pluginDir,
       ...this.config.args,
       this.config.prompt,
     ];
@@ -233,6 +236,22 @@ export class ClaudeCodeSession {
       },
     );
 
+    // Auto-accept workspace trust dialog and onboarding theme picker.
+    // PTY output contains ANSI escapes between words, so match on
+    // short contiguous fragments rather than full phrases.
+    let trustAccepted = false;
+    let themeAccepted = false;
+    this.ptyProcess.onData((data: string) => {
+      if (!trustAccepted && data.includes("trust")) {
+        trustAccepted = true;
+        this.ptyProcess?.write("\r");
+      }
+      if (!themeAccepted && data.includes("text style")) {
+        themeAccepted = true;
+        this.ptyProcess?.write("1");
+      }
+    });
+
     try {
       return await new Promise<SessionResult>((resolve) => {
         this.ptyProcess!.onExit(({ exitCode, signal }) => {
@@ -242,7 +261,6 @@ export class ClaudeCodeSession {
     } finally {
       this._guardrail.dispose();
       await this.hookServer.stop();
-      await this.plugin?.cleanup();
     }
   }
 

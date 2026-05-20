@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { createTestSession, isIntegration, hasFixture } from "./setup.js";
+import { createTestSession, isIntegration, hasFixture, createIsolatedHome } from "./setup.js";
 import type { ExitPlanModeEvent } from "../../src/claude_code/types.js";
 import os from "node:os";
 import path from "node:path";
@@ -11,7 +11,7 @@ describe("ExitPlanMode interaction", () => {
   test.skipIf(!isIntegration() && !hasFixture(TEST_NAME))(
     "handler receives plan text and approval works",
     async () => {
-      const tmpHome = mkdtempSync(path.join(os.tmpdir(), "tfh-plan-"));
+      const tmpHome = createIsolatedHome();
       const projectDir = mkdtempSync(path.join(os.tmpdir(), "tfh-project-"));
       writeFileSync(
         path.join(projectDir, "index.ts"),

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { createTestSession, isIntegration, hasFixture } from "./setup.js";
+import { createTestSession, isIntegration, hasFixture, createIsolatedHome } from "./setup.js";
 import type { AskUserQuestionEvent } from "../../src/claude_code/types.js";
 import os from "node:os";
 import path from "node:path";
@@ -11,7 +11,7 @@ describe("AskUserQuestion interaction", () => {
   test.skipIf(!isIntegration() && !hasFixture(TEST_NAME))(
     "handler receives structured question event",
     async () => {
-      const tmpHome = mkdtempSync(path.join(os.tmpdir(), "tfh-ask-"));
+      const tmpHome = createIsolatedHome();
       const projectDir = mkdtempSync(path.join(os.tmpdir(), "tfh-project-"));
       writeFileSync(
         path.join(projectDir, "main.ts"),
