@@ -18,6 +18,8 @@ pnpm add toll-free-harness node-pty
 
 `node-pty` is a peer dependency (it requires native compilation). Install it alongside the harness.
 
+No additional system dependencies are required -- the hook client is a bundled Node.js script, so there is no need for bash, curl, or any other external tool.
+
 ## Quick start
 
 ```typescript
@@ -76,7 +78,6 @@ const session = new ClaudeCodeSession(config: SessionConfig);
 | `bin` | `string` | no | Path to the `claude` binary (default: `"claude"`) |
 | `cols` | `number` | no | Terminal columns (default: `120`) |
 | `rows` | `number` | no | Terminal rows (default: `40`) |
-| `hookScriptDir` | `string` | no | Where to write hook scripts (default: `~/.toll-free-hooks`) |
 
 **Handler registration** (all return `this` for chaining):
 
@@ -126,37 +127,40 @@ Convenience functions that return strings suitable for `session.write()`:
 
 ### `writeHookSettings`
 
-Generates `~/.claude/settings.json` with the hook configuration pointing at the local hook server. Called automatically by `session.run()` -- you only need this if you are managing the lifecycle manually.
+Generates `~/.claude/settings.json` with the hook configuration pointing at the Unix domain socket. The generated hook command invokes the bundled `hook_client.js` with the socket path. Called automatically by `session.run()` -- you only need this if you are managing the lifecycle manually.
 
 ### `HookServer`
 
-Low-level HTTP server that receives hook events from Claude Code. Managed internally by `ClaudeCodeSession` -- direct use is only needed for advanced scenarios.
+Low-level HTTP server listening on a Unix domain socket that receives hook events from Claude Code. Managed internally by `ClaudeCodeSession` -- direct use is only needed for advanced scenarios.
 
 ## How it works
 
-1. `session.run()` starts an HTTP server on a random local port.
-2. It writes a small bash script to `~/.toll-free-hooks/toll-free-hook.sh` that forwards hook payloads to the server via `curl`.
-3. It writes `~/.claude/settings.json` configuring Claude Code to call that script for all hook events (`PreToolUse`, `PermissionRequest`, `PostToolUse`, `UserPromptSubmit`, `Stop`).
-4. It spawns `claude` in a PTY with your args and prompt -- standard interactive mode, no `-p` flag.
-5. Claude Code fires hooks as it runs. The bash script pipes each event to the local HTTP server, which dispatches to your registered handlers.
-6. Your handlers return JSON responses (allow/deny/modify) back through the same path.
-7. When Claude Code exits, `run()` resolves with the exit code.
+1. `session.run()` starts an HTTP server listening on a Unix domain socket at `/tmp/toll-free-<uuid>.sock`. Each session gets its own unique socket path, so concurrent sessions never collide.
+2. It writes `~/.claude/settings.json` configuring Claude Code to call the bundled Node.js hook client (`hook_client.js`) for all hook events (`PreToolUse`, `PermissionRequest`, `PostToolUse`, `UserPromptSubmit`, `Stop`). The hook command looks like: `node <lib>/dist/hook_client.js /tmp/toll-free-<uuid>.sock`.
+3. It spawns `claude` in a PTY with your args and prompt -- standard interactive mode, no `-p` flag.
+4. Claude Code fires hooks as it runs. The hook client reads the event payload from stdin, sends it as an HTTP POST over the Unix socket to the hook server, and pipes the response back to stdout.
+5. Your handlers return JSON responses (allow/deny/modify) back through the same path.
+6. When Claude Code exits, `run()` resolves with the exit code and the socket file is cleaned up.
 
 ```
 Claude Code (PTY)
     |
     | hook fires
     v
-toll-free-hook.sh (curl)
+hook_client.js (Node.js)
     |
-    | HTTP POST
+    | HTTP POST over Unix socket
     v
-HookServer (localhost)
+HookServer (/tmp/toll-free-<uuid>.sock)
     |
     | dispatch
     v
 Your handlers
 ```
+
+### Cross-platform support
+
+The hook client uses Node.js `http.request({ socketPath })` for IPC. Node.js supports AF_UNIX sockets on macOS, Linux, and Windows 10 1803+, so no platform-specific dependencies (bash, curl, etc.) are needed.
 
 ## License
 
