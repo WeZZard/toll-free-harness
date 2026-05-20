@@ -1,0 +1,51 @@
+{
+  "name": "toll-free-harness",
+  "version": "0.1.0",
+  "description": "Interactive terminal harness for AI coding agents — no programmatic billing toll.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {},
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node22 --out-dir dist --dts --clean",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.3",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WeZZard/toll-free-harness.git"
+  },
+  "keywords": [
+    "claude-code",
+    "pty",
+    "hooks",
+    "interactive",
+    "terminal",
+    "harness",
+    "ai-agent"
+  ]
+}
