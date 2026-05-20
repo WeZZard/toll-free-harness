@@ -3,7 +3,8 @@ export type { HookEvent, HookEventKind, ExpectedEvent } from "./core/types.js";
 
 export { ClaudeCodeSession } from "./claude_code/session.js";
 export { HookServer } from "./claude_code/hook_server.js";
-export { writeHookSettings } from "./claude_code/hook_settings.js";
+export { generatePlugin } from "./claude_code/plugin_generator.js";
+export type { GeneratedPlugin } from "./claude_code/plugin_generator.js";
 export type {
   HookRequest,
   HookListener,

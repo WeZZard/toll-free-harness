@@ -16,7 +16,7 @@ import type {
   SendPromptOptions,
 } from "./types.js";
 import { HookServer } from "./hook_server.js";
-import { writeHookSettings } from "./hook_settings.js";
+import { generatePlugin, type GeneratedPlugin } from "./plugin_generator.js";
 import { EventSequenceGuardrail } from "../core/guardrail.js";
 import {
   selectOptionByNumber,
@@ -30,6 +30,7 @@ export class ClaudeCodeSession {
   private ptyProcess: pty.IPty | undefined;
   private hookServer: HookServer;
   private _guardrail: EventSequenceGuardrail;
+  private plugin: GeneratedPlugin | undefined;
 
   // Dedicated interaction handlers
   private askUserQuestionHandler: AskUserQuestionHandler | undefined;
@@ -209,8 +210,7 @@ export class ClaudeCodeSession {
       return {};
     });
 
-    const homeDir = this.config.env?.HOME ?? process.env.HOME ?? "/tmp";
-    await writeHookSettings(homeDir, { socketPath });
+    this.plugin = await generatePlugin(socketPath);
 
     // Auto-inject survey suppression, then overlay user-provided env
     const env: Record<string, string> = { ...process.env as Record<string, string> };
@@ -220,6 +220,7 @@ export class ClaudeCodeSession {
     }
 
     const spawnArgs = [
+      "--plugin-dir", this.plugin.pluginDir,
       ...this.config.args,
       this.config.prompt,
     ];
@@ -261,6 +262,7 @@ export class ClaudeCodeSession {
     } finally {
       this._guardrail.dispose();
       await this.hookServer.stop();
+      await this.plugin?.cleanup();
     }
   }
 

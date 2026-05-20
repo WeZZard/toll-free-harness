@@ -23,8 +23,11 @@ vi.mock("../../src/claude_code/hook_server.js", () => {
   };
 });
 
-vi.mock("../../src/claude_code/hook_settings.js", () => ({
-  writeHookSettings: vi.fn().mockResolvedValue(undefined),
+vi.mock("../../src/claude_code/plugin_generator.js", () => ({
+  generatePlugin: vi.fn().mockResolvedValue({
+    pluginDir: "/tmp/toll-free-plugin-test",
+    cleanup: vi.fn().mockResolvedValue(undefined),
+  }),
 }));
 
 const { ClaudeCodeSession } = await import("../../src/claude_code/session.js");
