@@ -19,6 +19,10 @@ export class DialogGuard {
       for (const handler of this.handlers) {
         if (!handler.fired && data.includes(handler.trigger)) {
           handler.fired = true;
+          console.error(
+            `[tfh-debug] dialog match trigger=${JSON.stringify(handler.trigger)} ` +
+            `send=${JSON.stringify(handler.keystroke)}`,
+          );
           ptyProcess.write(handler.keystroke);
         }
       }

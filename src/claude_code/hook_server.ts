@@ -46,6 +46,7 @@ export class HookServer {
       });
       this.server.on("connection", (socket) => {
         this.connections.add(socket);
+        console.error(`[tfh-debug] hook-server connection accepted (n=${this.connections.size})`);
         socket.on("close", () => this.connections.delete(socket));
       });
       this.server.on("error", reject);

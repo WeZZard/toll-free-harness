@@ -1,6 +1,7 @@
 import * as pty from "node-pty";
 import path from "node:path";
 import os from "node:os";
+import { createWriteStream, type WriteStream } from "node:fs";
 import { randomUUID } from "node:crypto";
 import type {
   SessionConfig,
@@ -256,15 +257,51 @@ export class ClaudeCodeSession {
       },
     );
 
+    // === Debug instrumentation (opt-in via TFH_PTY_DEBUG_LOG env) =============
+    // When TFH_PTY_DEBUG_LOG is set, mirror every PTY byte Claude emits to that
+    // file and stamp key state transitions to stderr. Diagnoses hangs that
+    // would otherwise leave no trace — we see exactly what Claude was printing
+    // (or not printing) and when.
+    const debugLogPath = process.env.TFH_PTY_DEBUG_LOG;
+    let debugStream: WriteStream | null = null;
+    const t0 = Date.now();
+    const stamp = (msg: string) =>
+      console.error(`[tfh-debug] ${((Date.now() - t0) / 1000).toFixed(2)}s ${msg}`);
+    if (debugLogPath) {
+      debugStream = createWriteStream(debugLogPath, { flags: "a" });
+      debugStream.write(`\n--- tfh PTY mirror ${new Date().toISOString()} pid=${this.ptyProcess.pid} ---\n`);
+      console.error(`[tfh-debug] PTY mirror -> ${debugLogPath}`);
+      this.ptyProcess.onData((data: string) => { debugStream!.write(data); });
+    }
+    stamp(`spawned claude pid=${this.ptyProcess.pid} args=${JSON.stringify(spawnArgs.slice(0, 8))}…`);
+    let firstByteSeen = false;
+    let lastByteAt = Date.now();
+    this.ptyProcess.onData((data: string) => {
+      lastByteAt = Date.now();
+      if (!firstByteSeen) {
+        firstByteSeen = true;
+        stamp(`first PTY byte (${data.length} bytes: ${JSON.stringify(data.slice(0, 80))})`);
+      }
+    });
+    const heartbeat = setInterval(() => {
+      const idleSec = Math.round((Date.now() - lastByteAt) / 1000);
+      stamp(`heartbeat: claude pid=${this.ptyProcess!.pid} alive, last PTY byte ${idleSec}s ago, firstByte=${firstByteSeen}`);
+    }, 30_000);
+    heartbeat.unref();
+    // =========================================================================
+
     this.dialogGuard.attach(this.ptyProcess);
 
     try {
       return await new Promise<SessionResult>((resolve) => {
         this.ptyProcess!.onExit(({ exitCode, signal }) => {
+          stamp(`claude exited code=${exitCode} signal=${signal ?? 0}`);
           resolve({ exitCode, signal: signal ?? 0 });
         });
       });
     } finally {
+      clearInterval(heartbeat);
+      debugStream?.end();
       this.dialogGuard.deactivate();
       this._guardrail.dispose();
       await this.hookServer.stop();
